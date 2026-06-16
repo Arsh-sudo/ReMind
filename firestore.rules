@@ -32,7 +32,7 @@ service cloud.firestore {
     }
     
     match /users/{userId}/chats/{chatId} {
-      allow list: if isSignedIn() && request.auth.uid == userId;
+      allow read: if isSignedIn() && request.auth.uid == userId;
       allow create: if isSignedIn()
         && request.auth.uid == userId
         && isValidId(chatId)
