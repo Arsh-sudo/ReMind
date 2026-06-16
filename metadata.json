@@ -1,0 +1,10 @@
+{
+  "name": "Remix: ResearchMind",
+  "description": "A Multi-Agent Research Intelligence System that delegates tasks to specialized agents (Orchestrator, Web Search, Code Executor, Critic) to generate verified, structured research reports with a Trust Score.",
+  "requestFramePermissions": [
+    "microphone"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

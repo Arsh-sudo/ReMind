@@ -1,0 +1,21 @@
+{
+  "entities": {
+    "ChatRecord": {
+      "title": "ChatRecord",
+      "description": "Records of chat queries and generated research reports.",
+      "type": "object",
+      "properties": {
+        "query": { "type": "string" },
+        "report": { "type": "string" },
+        "timestamp": { "type": "number" }
+      },
+      "required": ["query", "report", "timestamp"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}/chats/{chatId}": {
+      "schema": { "$ref": "ChatRecord" },
+      "description": "History of chat interactions for a user."
+    }
+  }
+}
