@@ -3,7 +3,7 @@ import { Sidebar } from './components/Sidebar';
 import { ResearchInterface } from './components/ResearchInterface';
 import { Brain, Sun, Moon, Search, BrainCircuit, LineChart } from 'lucide-react';
 import { LoginScreen } from './components/LoginScreen';
-import logoUrl from './assets/images/app_logo_1781546652971.jpg';
+import { AppLogo } from './components/AppLogo';
 import { saveChatHistory } from './firebase';
 
 // Generate a random stable session ID
@@ -78,12 +78,7 @@ export default function App() {
       {/* Header */}
       <header className="h-16 border-b border-slate-200 dark:border-[#222] px-4 md:px-8 flex items-center justify-between bg-white dark:bg-[#080808] shrink-0 transition-colors duration-300">
         <div className="flex items-center gap-3 group">
-          <img 
-            src={logoUrl} 
-            alt="ReMind Logo" 
-            className="w-8 h-8 rounded-lg object-cover shadow-sm group-hover:scale-105 transition-transform" 
-            referrerPolicy="no-referrer"
-          />
+          <AppLogo className="w-8 h-8 shadow-sm group-hover:scale-105 transition-transform" />
           <h1 className="text-xl font-bold tracking-widest uppercase hidden sm:block text-slate-900 dark:text-white">REMIND</h1>
         </div>
         <div className="flex items-center gap-6">

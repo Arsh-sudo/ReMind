@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Sun, Moon, Loader2, Search, BrainCircuit, LineChart } from 'lucide-react';
 import { signInWithGoogle } from '../firebase';
-import logoUrl from '../assets/images/app_logo_1781546652971.jpg';
+import { AppLogo } from './AppLogo';
 
 export function LoginScreen({ onLogin, theme, toggleTheme }: { onLogin: (name: string, photoUrl: string | null, uid: string) => void, theme: 'light'|'dark', toggleTheme: () => void }) {
   const [isLoading, setIsLoading] = useState(false);
@@ -30,12 +30,7 @@ export function LoginScreen({ onLogin, theme, toggleTheme }: { onLogin: (name: s
 
       <div className="w-full max-w-md bg-white dark:bg-[#0a0a0a] rounded-2xl shadow-xl dark:shadow-2xl border border-slate-200 dark:border-[#222] p-8">
         <div className="flex flex-col items-center mb-8">
-          <img 
-            src={logoUrl} 
-            alt="ReMind Logo" 
-            className="w-16 h-16 rounded-2xl object-cover mb-4 shadow-md"
-            referrerPolicy="no-referrer"
-          />
+          <AppLogo className="w-16 h-16 mb-4 shadow-md" />
           <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-widest uppercase mb-1">ReMind</h1>
           <p className="text-sm text-slate-500 dark:text-zinc-500 text-center">Sign in to access your intelligence dashboard</p>
         </div>

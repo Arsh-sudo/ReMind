@@ -1,8 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Sparkles, Send, Loader2, Mic, Plus } from 'lucide-react';
+import { Sparkles, Send, Loader2, Mic, Plus, Copy, Edit2, FileText } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { motion, AnimatePresence } from 'motion/react';
 import { AgentWorkflow } from './AgentWorkflow';
+import jsPDF from 'jspdf';
 
 const greetings = [
   "Your move, Researcher!",
@@ -14,6 +15,7 @@ const greetings = [
 
 export function ResearchInterface({ sessionId, historyItem, onSynthesisComplete }: { sessionId: string, historyItem?: any, onSynthesisComplete?: (query: string, report: string) => void }) {
   const [query, setQuery] = useState('');
+  const [activeQuery, setActiveQuery] = useState('');
   const [isSynthesizing, setIsSynthesizing] = useState(false);
   const [activeAgents, setActiveAgents] = useState<{ agent: string, message: string }[]>([]);
   const [finalReport, setFinalReport] = useState('');
@@ -23,6 +25,8 @@ export function ResearchInterface({ sessionId, historyItem, onSynthesisComplete 
   const [image, setImage] = useState<{data: string, mimeType: string, url: string} | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const reportRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setGreeting(greetings[Math.floor(Math.random() * greetings.length)]);
@@ -37,6 +41,7 @@ export function ResearchInterface({ sessionId, historyItem, onSynthesisComplete 
   useEffect(() => {
     if (historyItem) {
       setQuery('');
+      setActiveQuery(historyItem.query || '');
       setFinalReport(historyItem.report || '');
       setActiveAgents([]);
       setIsSynthesizing(false);
@@ -44,6 +49,7 @@ export function ResearchInterface({ sessionId, historyItem, onSynthesisComplete 
       setImage(null);
     } else {
       setFinalReport('');
+      setActiveQuery('');
       setQuery('');
       setActiveAgents([]);
       setError('');
@@ -101,11 +107,85 @@ export function ResearchInterface({ sessionId, historyItem, onSynthesisComplete 
     }
   };
 
+  const exportToPDF = () => {
+    try {
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'pt',
+        format: 'a4'
+      });
+      
+      const margin = 40;
+      let y = margin;
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const maxLineWidth = pageWidth - margin * 2;
+      
+      const lines = finalReport.split('\n');
+      
+      for (let i = 0; i < lines.length; i++) {
+        let line = lines[i];
+        if (!line.trim()) {
+           y += 10;
+           continue;
+        }
+
+        let cleanLine = line.replace(/\*\*/g, '');
+        let fontSize = 12;
+        let fontStyle = "normal";
+        
+        if (cleanLine.startsWith('# ')) {
+           fontSize = 22;
+           fontStyle = "bold";
+           cleanLine = cleanLine.substring(2).trim();
+           y += 10;
+        } else if (cleanLine.startsWith('## ')) {
+           fontSize = 18;
+           fontStyle = "bold";
+           cleanLine = cleanLine.substring(3).trim();
+           y += 10;
+        } else if (cleanLine.startsWith('### ')) {
+           fontSize = 14;
+           fontStyle = "bold";
+           cleanLine = cleanLine.substring(4).trim();
+           y += 5;
+        } else if (cleanLine.startsWith('- ')) {
+           cleanLine = "• " + cleanLine.substring(2).trim();
+        } else if (cleanLine.startsWith('> ')) {
+           fontStyle = "italic";
+           cleanLine = cleanLine.substring(2).trim();
+        }
+        
+        pdf.setFontSize(fontSize);
+        pdf.setFont("helvetica", fontStyle);
+        
+        const splitText = pdf.splitTextToSize(cleanLine, maxLineWidth);
+        
+        for (const textLine of splitText) {
+          if (y > pageHeight - margin) {
+            pdf.addPage();
+            y = margin;
+            pdf.setFontSize(fontSize);
+            pdf.setFont("helvetica", fontStyle);
+          }
+          pdf.text(textLine, margin, y);
+          y += fontSize * 1.5;
+        }
+      }
+      
+      pdf.save('Research_Report.pdf');
+    } catch (err) {
+      console.error("Failed to export PDF", err);
+      alert("Failed to export as PDF.");
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const currentQuery = query.trim() || (image ? "Image Analysis" : "");
     if (!currentQuery && !image) return;
 
+    setActiveQuery(currentQuery);
     setQuery('');
     setActiveAgents([]);
     setFinalReport('');
@@ -185,7 +265,7 @@ export function ResearchInterface({ sessionId, historyItem, onSynthesisComplete 
         <div className="max-w-3xl mx-auto space-y-12 pb-32">
           
           {/* Empty State */}
-          {!isSynthesizing && !finalReport && !error && greeting && (
+          {!isSynthesizing && !finalReport && !error && greeting && !activeQuery && (
              <motion.div 
                initial={{ opacity: 0, y: 20 }}
                animate={{ opacity: 1, y: 0 }}
@@ -198,6 +278,40 @@ export function ResearchInterface({ sessionId, historyItem, onSynthesisComplete 
              </motion.div>
           )}
 
+          {/* Active Query Display */}
+          {(activeQuery) && (
+            <motion.div 
+               initial={{ opacity: 0, y: 10 }}
+               animate={{ opacity: 1, y: 0 }}
+               className="mb-8 flex justify-end w-full"
+            >
+              <div className="flex flex-col items-start bg-indigo-50 dark:bg-[#1a1a1a] p-5 rounded-2xl rounded-tr-sm border border-indigo-100 dark:border-[#333] max-w-[85%] md:max-w-[75%] shadow-sm">
+                 <h2 className="text-lg font-medium text-slate-800 dark:text-zinc-100 whitespace-pre-wrap">{activeQuery}</h2>
+                 <div className="flex items-center gap-2 mt-3 w-full justify-end border-t border-indigo-100 dark:border-[#2a2a2a] pt-2">
+                    <button 
+                       onClick={() => {
+                          setQuery(activeQuery);
+                          inputRef.current?.focus();
+                       }}
+                       title="Edit Query"
+                       className="p-1.5 text-slate-400 hover:text-indigo-600 dark:text-zinc-500 dark:hover:text-indigo-400 transition-colors rounded-md"
+                    >
+                       <Edit2 size={14} />
+                    </button>
+                    <button 
+                       onClick={() => {
+                          navigator.clipboard.writeText(activeQuery);
+                       }}
+                       title="Copy Query"
+                       className="p-1.5 text-slate-400 hover:text-indigo-600 dark:text-zinc-500 dark:hover:text-indigo-400 transition-colors rounded-md"
+                    >
+                       <Copy size={14} />
+                    </button>
+                 </div>
+              </div>
+            </motion.div>
+          )}
+
           {/* Workflow Visualization */}
           {activeAgents.length > 0 && !finalReport && (
             <AgentWorkflow agents={activeAgents} />
@@ -208,32 +322,46 @@ export function ResearchInterface({ sessionId, historyItem, onSynthesisComplete 
             <motion.div 
                initial={{ opacity: 0, y: 10 }}
                animate={{ opacity: 1, y: 0 }}
-               className="relative"
+               className="relative flex flex-col items-start w-full"
             >
-              <div className="prose prose-slate dark:prose-invert prose-emerald max-w-none">
-                 <ReactMarkdown
-                   components={{
-                     h1: ({node, ...props}) => <h1 className="text-[42px] font-serif font-light leading-tight text-slate-900 dark:text-white mb-4 bg-gradient-to-r from-indigo-50 to-transparent dark:from-[#0a0a0a] p-4 rounded-xl border border-indigo-100 dark:border-[#222]" {...props} />,
-                     h2: ({node, ...props}) => <h2 className="text-2xl font-serif font-light mt-8 mb-4 text-slate-800 dark:text-zinc-200 border-b border-slate-200 dark:border-[#222] pb-4" {...props} />,
-                     h3: ({node, ...props}) => <h3 className="font-sans font-medium text-lg mt-6 mb-3 text-slate-700 dark:text-zinc-300 inline-block bg-slate-100 dark:bg-[#111] px-3 py-1 rounded-md text-sm" {...props} />,
-                     p: ({node, ...props}) => <p className="leading-relaxed text-slate-700 dark:text-zinc-300 mb-4" {...props} />,
-                     ul: ({node, ...props}) => <ul className="list-disc list-outside pl-5 space-y-2 mb-4 text-slate-600 dark:text-zinc-400 ml-4 font-sans text-sm" {...props} />,
-                     li: ({node, ...props}) => <li className="pl-1" {...props} />,
-                     strong: ({node, ...props}) => <strong className="font-semibold text-slate-900 dark:text-zinc-100" {...props} />,
-                     blockquote: ({node, ...props}) => {
-                       // Check if it's the trust score blockquote
-                       const text = String(props.children);
-                       if (text.includes("Trust Score")) {
-                          return (
-                            <blockquote className="my-8 text-center border border-indigo-200 dark:border-[#333] p-6 rounded-xl bg-white dark:bg-[#0a0a0a] shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-none" {...props} />
-                          )
+              <div className="bg-white dark:bg-[#0a0a0a] p-8 md:p-10 rounded-2xl md:rounded-3xl border border-slate-200 dark:border-[#222] shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-none w-[90%] md:w-[85%] self-start" ref={reportRef}>
+                <div className="prose prose-slate dark:prose-invert prose-emerald max-w-none">
+                   <ReactMarkdown
+                     components={{
+                       h1: ({node, ...props}) => <h1 className="text-[32px] md:text-[42px] font-serif font-light leading-tight text-slate-900 dark:text-white mb-4 bg-gradient-to-r from-indigo-50 to-transparent dark:from-[#111] p-4 rounded-xl border border-indigo-100 dark:border-[#333]" {...props} />,
+                       h2: ({node, ...props}) => <h2 className="text-2xl font-serif font-light mt-8 mb-4 text-slate-800 dark:text-zinc-200 border-b border-slate-200 dark:border-[#222] pb-4" {...props} />,
+                       h3: ({node, ...props}) => <h3 className="font-sans font-medium text-lg mt-6 mb-3 text-slate-700 dark:text-zinc-300 inline-block bg-slate-100 dark:bg-[#111] px-3 py-1 rounded-md text-sm" {...props} />,
+                       p: ({node, ...props}) => <p className="leading-relaxed text-slate-700 dark:text-zinc-300 mb-4" {...props} />,
+                       ul: ({node, ...props}) => <ul className="list-disc list-outside pl-5 space-y-2 mb-4 text-slate-600 dark:text-zinc-400 ml-4 font-sans text-sm" {...props} />,
+                       li: ({node, ...props}) => <li className="pl-1" {...props} />,
+                       strong: ({node, ...props}) => <strong className="font-semibold text-slate-900 dark:text-zinc-100" {...props} />,
+                       blockquote: ({node, ...props}) => {
+                         // Check if it's the trust score blockquote
+                         const text = String(props.children);
+                         if (text.includes("Trust Score")) {
+                            return (
+                              <blockquote className="my-8 text-center border border-indigo-200 dark:border-[#333] p-6 rounded-xl bg-white dark:bg-[#111] shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-none" {...props} />
+                            )
+                         }
+                         return <blockquote className="border-l-2 border-indigo-500 dark:border-indigo-900 bg-indigo-50/50 dark:bg-[#0a0a0a] pl-6 py-3 pr-4 italic text-lg text-slate-600 dark:text-zinc-300 font-serif leading-relaxed my-6 rounded-r-lg" {...props} />
                        }
-                       return <blockquote className="border-l-2 border-indigo-500 dark:border-indigo-900 bg-indigo-50/50 dark:bg-transparent pl-6 py-3 pr-4 italic text-lg text-slate-600 dark:text-zinc-300 font-serif leading-relaxed my-6 rounded-r-lg" {...props} />
-                     }
-                   }}
-                 >
-                   {finalReport}
-                 </ReactMarkdown>
+                     }}
+                   >
+                     {finalReport}
+                   </ReactMarkdown>
+                </div>
+              </div>
+              
+              {/* Action Buttons Below Report */}
+              <div className="flex justify-start items-center gap-2 mt-4 self-start">
+                <button 
+                  onClick={exportToPDF}
+                  className="flex items-center gap-1.5 px-4 py-2 bg-white dark:bg-[#111] hover:bg-slate-100 dark:hover:bg-[#1a1a1a] text-slate-600 dark:text-zinc-300 border border-slate-200 dark:border-[#333] rounded-lg text-sm font-medium transition-colors shadow-sm"
+                  title="Download as PDF"
+                >
+                  <FileText size={16} className="text-indigo-500" />
+                  Download PDF
+                </button>
               </div>
             </motion.div>
           )}
@@ -285,6 +413,7 @@ export function ResearchInterface({ sessionId, historyItem, onSynthesisComplete 
             
             <input
               type="text"
+              ref={inputRef}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               disabled={isSynthesizing}
