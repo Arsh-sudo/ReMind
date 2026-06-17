@@ -14,7 +14,7 @@
   },
   "firestore": {
     "/users/{userId}/chats/{chatId}": {
-      "schema": { "$ref": "ChatRecord" },
+      "schema": "ChatRecord",
       "description": "History of chat interactions for a user."
     }
   }
