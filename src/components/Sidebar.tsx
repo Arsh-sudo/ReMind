@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { Plus, Search, Image as ImageIcon, LayoutGrid, PlusSquare, History, Settings, Activity, User, ShieldCheck, Database, LogOut, ChevronRight, UserCircle, MessageSquare, HelpCircle, Keyboard, FileText } from 'lucide-react';
+import { Plus, Search, Image as ImageIcon, LayoutGrid, PlusSquare, History, Settings, Activity, User, ShieldCheck, Database, LogOut, ChevronRight, UserCircle, MessageSquare, HelpCircle, Keyboard, FileText, X } from 'lucide-react';
 import { FeedbackModal } from './FeedbackModal';
 import { SearchChatModal } from './SearchChatModal';
 import { ShortcutsModal } from './ShortcutsModal';
@@ -13,6 +13,7 @@ interface SidebarProps {
   refreshTrigger?: number;
   userName?: string;
   userPhoto?: string | null;
+  onClose?: () => void;
 }
 
 interface HistoryItem {
@@ -21,7 +22,7 @@ interface HistoryItem {
   report?: string;
 }
 
-export function Sidebar({ sessionId, userId, onHistoryClick, onNewChat, refreshTrigger = 0, userName, userPhoto }: SidebarProps) {
+export function Sidebar({ sessionId, userId, onHistoryClick, onNewChat, refreshTrigger = 0, userName, userPhoto, onClose }: SidebarProps) {
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [showSettings, setShowSettings] = useState(false);
   const [showFeedback, setShowFeedback] = useState(false);
@@ -69,6 +70,20 @@ export function Sidebar({ sessionId, userId, onHistoryClick, onNewChat, refreshT
 
   return (
     <aside className="w-72 border-r border-slate-200 dark:border-[#222] bg-slate-50 dark:bg-[#111111] flex flex-col p-4 h-full font-sans text-sm transition-colors duration-300">
+      
+      {/* Mobile Header Inside Sidebar */}
+      {onClose && (
+        <div className="flex items-center justify-between md:hidden mb-2 pb-2 border-b border-slate-200 dark:border-[#222]">
+          <span className="font-semibold text-xs uppercase tracking-widest text-slate-500 dark:text-zinc-500">Navigation</span>
+          <button 
+            onClick={onClose}
+            className="p-1.5 rounded-lg hover:bg-slate-200 dark:hover:bg-[#1F1F1F] text-slate-500 dark:text-zinc-400 transition-colors"
+            title="Close sidebar"
+          >
+            <X size={16} />
+          </button>
+        </div>
+      )}
       
       {/* Top Menu Actions */}
       <div className="space-y-2 mb-6 mt-2">

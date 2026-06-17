@@ -229,7 +229,24 @@ export function LoginScreen({ onLogin, theme, toggleTheme }: {
                 animate={{ opacity: 1, y: 0 }}
                 className="p-3.5 mb-6 bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 text-red-600 dark:text-red-400 rounded-xl text-xs leading-relaxed"
               >
-                {error}
+                {error.includes('unauthorized-domain') ? (
+                  <div className="space-y-1.5 text-left text-red-700 dark:text-red-300">
+                    <p className="font-semibold text-sm">Firebase: Unauthorized Domain Error</p>
+                    <p className="text-[11px] opacity-90">
+                      The deployed shared domain (<strong>{window.location.hostname}</strong>) has not yet been registered in your Firebase project's Authorized Domains.
+                    </p>
+                    <div className="text-[10px] p-2.5 bg-red-100/50 dark:bg-red-950/40 rounded-lg text-slate-700 dark:text-zinc-300 font-mono mt-2 space-y-1">
+                      <p className="font-semibold uppercase tracking-wider text-[9px] mb-1">To Resolve This:</p>
+                      <p className="font-medium text-indigo-600 dark:text-indigo-400">Option A: Re-deploy in AI Studio</p>
+                      <p className="opacity-80">Relaunch, click any "Deploy" or "Sync" buttons in the AI Studio platform to prompt automatic whitelisting update for the shared link.</p>
+                      <p className="font-medium text-amber-500 mt-1.5">Option B: Use your private Firebase Project</p>
+                      <p className="opacity-80">1. Go to Firebase Console &gt; Authentication &gt; Settings &gt; Authorized domains.</p>
+                      <p className="opacity-80">2. Register <strong>{window.location.hostname}</strong> as an authorized origin.</p>
+                    </div>
+                  </div>
+                ) : (
+                  error
+                )}
               </motion.div>
             )}
 

@@ -21,6 +21,9 @@ export default function App() {
 
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
   const [isSidebarOpen, setIsSidebarOpen] = useState(() => {
+    if (typeof window !== 'undefined' && window.innerWidth < 768) {
+      return false; // Close by default on mobile
+    }
     return localStorage.getItem('rm_sidebar_open') !== 'false';
   });
 
@@ -129,7 +132,7 @@ export default function App() {
         <div className="flex items-center gap-3 group">
           <button
             onClick={() => setIsSidebarOpen(prev => !prev)}
-            className="p-2 -ml-2 rounded-lg hover:bg-slate-100 dark:hover:bg-[#1A1A1A] text-slate-600 dark:text-zinc-400 hidden md:block transition-colors"
+            className="p-2 -ml-2 rounded-lg hover:bg-slate-100 dark:hover:bg-[#1A1A1A] text-slate-600 dark:text-zinc-400 transition-colors"
             title={isSidebarOpen ? "Minimize sidebar" : "Expand sidebar"}
           >
             {isSidebarOpen ? <PanelLeftClose size={18} /> : <PanelLeftOpen size={18} />}
@@ -150,17 +153,43 @@ export default function App() {
       {/* Main Layout */}
       <main className="flex-1 flex overflow-hidden relative">
         <ParticleBackground />
-        <div className={`hidden md:flex relative z-10 transition-all duration-300 ease-in-out ${isSidebarOpen ? "w-72" : "w-0 opacity-0 overflow-hidden"}`}>
+
+        {/* Mobile Backdrop Overlay */}
+        {isSidebarOpen && (
+          <div 
+            onClick={() => setIsSidebarOpen(false)}
+            className="fixed inset-0 bg-black/40 backdrop-blur-xs z-40 md:hidden transition-opacity duration-300"
+          />
+        )}
+
+        {/* Sidebar Container with Responsive Drawer Behavior */}
+        <div 
+          className={`fixed inset-y-0 left-0 z-50 md:relative md:z-10 h-full flex transition-all duration-300 ease-in-out 
+            ${isSidebarOpen ? "translate-x-0 w-72" : "-translate-x-full md:translate-x-0 md:w-0 md:opacity-0 md:overflow-hidden"}
+          `}
+        >
           <Sidebar 
             sessionId={sessionId} 
             userId={userId}
-            onHistoryClick={setActiveHistoryItem} 
+            onHistoryClick={(item) => {
+              setActiveHistoryItem(item);
+              if (window.innerWidth < 768) {
+                setIsSidebarOpen(false);
+              }
+            }} 
             refreshTrigger={historyTrigger}
-            onNewChat={() => setActiveHistoryItem(null)}
+            onNewChat={() => {
+              setActiveHistoryItem(null);
+              if (window.innerWidth < 768) {
+                setIsSidebarOpen(false);
+              }
+            }}
             userName={userName}
             userPhoto={userPhoto}
+            onClose={() => setIsSidebarOpen(false)}
           />
         </div>
+
         <section className="flex-1 flex flex-col min-w-0 bg-transparent relative z-10 transition-colors duration-300">
           <ResearchInterface 
             sessionId={sessionId} 
