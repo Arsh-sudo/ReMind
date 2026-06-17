@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
-import { getFirestore, collection, addDoc, query, orderBy, getDocs, limit } from 'firebase/firestore';
+import { getFirestore, collection, addDoc, query, orderBy, getDocs, limit, doc, updateDoc } from 'firebase/firestore';
 import appletConfig from '../firebase-applet-config.json';
 
 const firebaseConfig = {
@@ -65,17 +65,34 @@ export const signInWithGoogle = async () => {
   }
 };
 
-export const saveChatHistory = async (uid: string, queryText: string, report: string, timestamp: number) => {
+export const saveChatHistory = async (
+  uid: string,
+  chatId: string | null,
+  queryText: string,
+  messages: { query: string, report: string }[],
+  timestamp: number
+): Promise<string | null> => {
   const path = `users/${uid}/chats`;
   try {
-    const userChatsRef = collection(db, 'users', uid, 'chats');
-    await addDoc(userChatsRef, {
-      query: queryText,
-      report,
-      timestamp
-    });
+    if (chatId) {
+      const docRef = doc(db, 'users', uid, 'chats', chatId);
+      await updateDoc(docRef, {
+        messages,
+        timestamp
+      });
+      return chatId;
+    } else {
+      const userChatsRef = collection(db, 'users', uid, 'chats');
+      const newDoc = await addDoc(userChatsRef, {
+        query: queryText,
+        messages,
+        timestamp
+      });
+      return newDoc.id;
+    }
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, path);
+    return null;
   }
 };
 
@@ -85,7 +102,19 @@ export const loadChatHistory = async (uid: string) => {
     const userChatsRef = collection(db, 'users', uid, 'chats');
     const q = query(userChatsRef, orderBy('timestamp', 'desc'), limit(100));
     const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => doc.data() as { query: string, report: string, timestamp: number });
+    return snapshot.docs.map(doc => {
+      const data = doc.data();
+      let messages = data.messages || [];
+      if (messages.length === 0 && data.query && data.report) {
+        messages = [{ query: data.query, report: data.report }];
+      }
+      return { 
+         id: doc.id,
+         query: data.query, 
+         messages,
+         timestamp: data.timestamp 
+      };
+    });
   } catch (error) {
     handleFirestoreError(error, OperationType.LIST, path);
     return [];

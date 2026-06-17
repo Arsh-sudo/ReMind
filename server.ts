@@ -24,7 +24,7 @@ async function startServer() {
     };
 
     try {
-      const { query, sessionId, image } = req.body;
+      const { query, sessionId, image, selectedAgents = ['web', 'code', 'critic'] } = req.body;
       const apiKey = process.env.GEMINI_API_KEY;
       if (!apiKey) {
         throw new Error("GEMINI_API_KEY environment variable is required");
@@ -43,70 +43,139 @@ async function startServer() {
       memoryStore[sessionId].push({ query, timestamp, report: '' });
 
       // Step 1: Orchestrator
-      sendEvent('status', { agent: 'orchestrator', message: 'Analyzing query and delegating to specialized agents...' });
+      sendEvent('status', { agent: 'orchestrator', message: 'Analyzing query and delegating to selected agents...' });
       await new Promise(r => setTimeout(r, 1500));
 
-      // Step 2: Web Search and Code Agents start in parallel
-      sendEvent('status', { agent: 'web', message: 'Executing live Google Search to gather latest academic and news sources...' });
-      sendEvent('status', { agent: 'code', message: 'Provisioning sandboxed environment to compute data analysis...' });
-
-      const webSearchPromise = ai.models.generateContent({
-        model,
-        contents: image ? [
-           `Research the following topic thoroughly. Gather recent facts, statistics, and claims. Topic: ${query}. ${historyContext}`,
-           { inlineData: { data: image.data, mimeType: image.mimeType } }
-        ] : `Research the following topic thoroughly. Gather recent facts, statistics, and claims. Topic: ${query}. ${historyContext}`,
-        config: {
-          tools: [{ googleSearch: {} }]
-        }
-      });
-
-      const codeExecPromise = ai.models.generateContent({
-        model,
-        contents: `Act as a Data Analysis Agent. Generate a highly analytical summary providing mathematical, statistical, or structured insights about this topic: ${query}. (Simulate Kaggle/Python output)`,
-        config: {
-          systemInstruction: "You are the Code Executor Agent in a research pipeline. Provide data insights."
-        }
-      });
-
-      const [webResult, codeResult] = await Promise.all([webSearchPromise, codeExecPromise]);
-
-      sendEvent('status', { agent: 'critic', message: 'Cross-verifying all claims, evaluating constraints, and calculating Trust Score...' });
+      // Step 2: Selected Agents in parallel
+      const promises: Promise<any>[] = [];
       
-      const criticPrompt = `
-      You are the Critic Agent. Your job is to rigorously review the provided Web Research Data and Data Analysis, fact-check the claims, apply a Trust Score (0-100), and format a final Structured Research Report in Markdown.
+      let webResultText = "Web Search Agent was not selected.";
+      let codeResultText = "Data Analysis Agent was not selected.";
 
-      --- Web Research Data ---
-      ${webResult.text}
+      const withRetry = async <T>(fn: () => Promise<T>, retries = 3): Promise<T> => {
+        for (let i = 0; i < retries; i++) {
+          try {
+            return await fn();
+          } catch (err: any) {
+            if (i === retries - 1) throw err;
+            await new Promise(r => setTimeout(r, 1500 * (i + 1)));
+          }
+        }
+        throw new Error("Unreachable");
+      };
 
-      --- Data Analysis ---
-      ${codeResult.text}
+      if (selectedAgents.includes('web')) {
+         sendEvent('status', { agent: 'web', message: 'Executing live Google Search to gather latest academic and news sources...' });
+         const webSearchPromise = withRetry(() => ai.models.generateContent({
+           model,
+           contents: image ? [
+              `Research the following topic thoroughly. Gather recent facts, statistics, and claims. Topic: ${query}. ${historyContext}`,
+              { inlineData: { data: image.data, mimeType: image.mimeType } }
+           ] : `Research the following topic thoroughly. Gather recent facts, statistics, and claims. Topic: ${query}. ${historyContext}`,
+           config: {
+             tools: [{ googleSearch: {} }]
+           }
+         })).then(res => res.text).catch(err => {
+             console.error("Web Search Error:", err);
+             return "Web Search Agent failed to fetch data due to high demand or an error.";
+         });
+         promises.push(webSearchPromise.then(text => webResultText = text));
+      }
 
-      --- Requirements ---
-      - Output a highly professional Markdown document.
-      - Never break character as the final output synthesizer.
-      - Start directly with the markdown content.
-      - Format must be:
-        # Research Report: [Topic Name]
-        ## Executive Summary
-        ## Key Findings & Claims
-        ## Data Insights
-        ## Critic's Guardrails & Evaluation
-        > **Trust Score: X/100**
-        (Include rationale for the score based on source credibility and consensus).
-        ## Evaluated Sources
-      `;
+      if (selectedAgents.includes('code')) {
+         sendEvent('status', { agent: 'code', message: 'Provisioning sandboxed environment to compute data analysis...' });
+         const codeExecPromise = withRetry(() => ai.models.generateContent({
+           model,
+           contents: `Act as a Data Analysis Agent. Generate a highly analytical summary providing mathematical, statistical, or structured insights about this topic: ${query}. (Simulate Kaggle/Python output)`,
+           config: {
+             systemInstruction: "You are the Code Executor Agent in a research pipeline. Provide data insights."
+           }
+         })).then(res => res.text).catch(err => {
+             console.error("Code Exec Error:", err);
+             return "Data Analyst Agent failed to compute insights due to high demand or an error.";
+         });
+         promises.push(codeExecPromise.then(text => codeResultText = text));
+      }
 
-      const criticStream = await ai.models.generateContentStream({
-        model,
-        contents: criticPrompt,
-        config: { systemInstruction: "You are the Critic Agent. Output clean markdown." }
-      });
+      await Promise.all(promises);
+
+      let finalStream;
+      
+      const hasDataAgents = selectedAgents.includes('web') || selectedAgents.includes('code');
+
+      if (selectedAgents.includes('critic')) {
+        sendEvent('status', { agent: 'critic', message: 'Cross-verifying all claims, evaluating constraints, and calculating Trust Score...' });
+        
+        const criticPrompt = hasDataAgents ? `
+        You are the Critic Agent. Your job is to rigorously review the provided Web Research Data and Data Analysis, fact-check the claims, apply a Trust Score (0-100), and format a final Structured Research Report in Markdown.
+
+        --- Web Research Data ---
+        ${webResultText}
+
+        --- Data Analysis ---
+        ${codeResultText}
+
+        --- Requirements ---
+        - Output a highly professional Markdown document.
+        - Never break character as the final output synthesizer.
+        - Start directly with the markdown content.
+        - Format must be:
+          # Research Report: [Topic Name]
+          ## Executive Summary
+          ## Key Findings & Claims
+          ## Data Insights
+          ## Critic's Guardrails & Evaluation
+          > **Trust Score: X/100**
+          (Include rationale for the score based on source credibility and consensus).
+          ## Evaluated Sources
+        ` : `
+        You are the Critic Agent. The user asked a question ("${query}"), but chose not to provide external web research data or data analysis context.
+        Please comprehensively answer the user's query based on your own internal knowledge. 
+        Format your response as a professional Markdown document.
+        - Never break character.
+        - Start directly with the markdown content.
+        - Include an Executive Summary, your findings, and a final Trust Score representing your confidence in your own knowledge of the topic.
+        `;
+
+        finalStream = await withRetry(() => ai.models.generateContentStream({
+          model,
+          contents: criticPrompt,
+          config: { systemInstruction: "You are the Critic Agent. Output clean markdown." }
+        }));
+      } else {
+        // Fallback synthesizer if Critic is not selected
+        sendEvent('status', { agent: 'orchestrator', message: 'Synthesizing output directly from selected agents...' });
+        
+        const compilePrompt = hasDataAgents ? `
+        You are the Report Synthesizer. Your job is to compile the provided Web Research Data and Data Analysis into a cohesive Markdown report.
+
+        --- Web Research Data ---
+        ${webResultText}
+
+        --- Data Analysis ---
+        ${codeResultText}
+
+        --- Requirements ---
+        - Output a clean Markdown document.
+        - Start directly with the markdown content.
+        ` : `
+        You are the Report Synthesizer. The user asked a question ("${query}"), but no external agents were selected to provide context.
+        Please comprehensively answer the user's query based on your internal knowledge.
+        - Output a clean Markdown document.
+        - Start directly with the markdown content.
+        `;
+
+        finalStream = await withRetry(() => ai.models.generateContentStream({
+          model,
+          contents: compilePrompt,
+          config: { systemInstruction: "You are a professional report compiler. Output clean markdown." }
+        }));
+      }
 
       sendEvent('status', { agent: 'orchestrator', message: 'Compilation complete. Streaming structured report...' });
 
       let fullReport = "";
-      for await (const chunk of criticStream) {
+      for await (const chunk of finalStream) {
         const text = chunk.text;
         if (text) {
           fullReport += text;
@@ -125,9 +194,9 @@ async function startServer() {
       sendEvent('done', {});
       res.end();
     } catch (error: any) {
-       // Avoid logging rate limits to stderr to prevent false crash reports
-       if (error?.message && (error.message.includes('429') || error.message.includes('RESOURCE_EXHAUSTED') || error.message.includes('503'))) {
-           console.log("Research API Warning:", error.message.substring(0, 200) + '...');
+       // Avoid logging rate limits to stderr or stdout to prevent false crash reports
+       if (error?.message && (error.message.includes('429') || error.message.includes('RESOURCE_EXHAUSTED') || error.message.includes('503') || error.message.includes('UNAVAILABLE'))) {
+           // Suppress known transient errors
        } else {
            console.error("Research Error:", error);
        }

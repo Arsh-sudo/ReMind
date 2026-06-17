@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Sparkles, Send, Loader2, Mic, Plus, Copy, Edit2, FileText } from 'lucide-react';
+import { Sparkles, Send, Loader2, Mic, Plus, Copy, Edit2, FileText, ArrowUp, ArrowDown } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { motion, AnimatePresence } from 'motion/react';
 import { AgentWorkflow } from './AgentWorkflow';
@@ -13,9 +13,19 @@ const greetings = [
   "Initiating intelligence protocol."
 ];
 
-export function ResearchInterface({ sessionId, historyItem, onSynthesisComplete }: { sessionId: string, historyItem?: any, onSynthesisComplete?: (query: string, report: string) => void }) {
+export function ResearchInterface({ 
+  sessionId, 
+  historyItem, 
+  onSynthesisComplete 
+}: { 
+  sessionId: string, 
+  historyItem?: any, 
+  onSynthesisComplete?: (chatId: string | null, query: string, messages: {query: string, report: string}[]) => Promise<string | null> | void 
+}) {
   const [query, setQuery] = useState('');
   const [activeQuery, setActiveQuery] = useState('');
+  const [messages, setMessages] = useState<{ query: string, report: string }[]>([]);
+  const [currentChatId, setCurrentChatId] = useState<string | null>(null);
   const [isSynthesizing, setIsSynthesizing] = useState(false);
   const [activeAgents, setActiveAgents] = useState<{ agent: string, message: string }[]>([]);
   const [finalReport, setFinalReport] = useState('');
@@ -23,10 +33,20 @@ export function ResearchInterface({ sessionId, historyItem, onSynthesisComplete 
   const [greeting, setGreeting] = useState('');
   const [isListening, setIsListening] = useState(false);
   const [image, setImage] = useState<{data: string, mimeType: string, url: string} | null>(null);
+  const [selectedAgents, setSelectedAgents] = useState<string[]>(['web', 'code', 'critic']);
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const reportRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (error) {
+      const timer = setTimeout(() => {
+        setError('');
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [error]);
 
   useEffect(() => {
     setGreeting(greetings[Math.floor(Math.random() * greetings.length)]);
@@ -36,18 +56,26 @@ export function ResearchInterface({ sessionId, historyItem, onSynthesisComplete 
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [finalReport]);
+  }, [finalReport, messages]);
 
   useEffect(() => {
     if (historyItem) {
+      setCurrentChatId(historyItem.id || null);
+      if (historyItem.messages && historyItem.messages.length > 0) {
+        setMessages(historyItem.messages);
+      } else {
+        setMessages([{ query: historyItem.query || '', report: historyItem.report || '' }]);
+      }
       setQuery('');
-      setActiveQuery(historyItem.query || '');
-      setFinalReport(historyItem.report || '');
+      setActiveQuery('');
+      setFinalReport('');
       setActiveAgents([]);
       setIsSynthesizing(false);
       setError('');
       setImage(null);
     } else {
+      setCurrentChatId(null);
+      setMessages([]);
       setFinalReport('');
       setActiveQuery('');
       setQuery('');
@@ -121,7 +149,15 @@ export function ResearchInterface({ sessionId, historyItem, onSynthesisComplete 
       const pageHeight = pdf.internal.pageSize.getHeight();
       const maxLineWidth = pageWidth - margin * 2;
       
-      const lines = finalReport.split('\n');
+      let fullContent = '';
+      messages.forEach(m => {
+         fullContent += `# Query: ${m.query}\n\n${m.report}\n\n`;
+      });
+      if (finalReport) {
+         fullContent += `# Query: ${activeQuery}\n\n${finalReport}\n\n`;
+      }
+
+      const lines = fullContent.split('\n');
       
       for (let i = 0; i < lines.length; i++) {
         let line = lines[i];
@@ -182,6 +218,17 @@ export function ResearchInterface({ sessionId, historyItem, onSynthesisComplete 
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (selectedAgents.length === 0) {
+      setError('Please select at least one agent to proceed.');
+      return;
+    }
+    
+    let updatedMessages = [...messages];
+    if (activeQuery) {
+        updatedMessages.push({ query: activeQuery, report: finalReport });
+        setMessages(updatedMessages);
+    }
+
     const currentQuery = query.trim() || (image ? "Image Analysis" : "");
     if (!currentQuery && !image) return;
 
@@ -199,7 +246,7 @@ export function ResearchInterface({ sessionId, historyItem, onSynthesisComplete 
       const response = await fetch('/api/research', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: currentQuery, sessionId, image: imagePayload }),
+        body: JSON.stringify({ query: currentQuery, sessionId, image: imagePayload, selectedAgents }),
       });
 
       if (!response.body) throw new Error('No readable stream');
@@ -226,7 +273,6 @@ export function ResearchInterface({ sessionId, historyItem, onSynthesisComplete 
                  const data = JSON.parse(dataStr);
                  if (currentEvent === 'status') {
                     setActiveAgents((prev) => {
-                       // if replacing the same agent's message, filter it out first
                        const filtered = prev.filter(p => p.agent !== data.agent);
                        return [...filtered, data];
                     });
@@ -235,7 +281,16 @@ export function ResearchInterface({ sessionId, historyItem, onSynthesisComplete 
                     fullReport += data.text;
                  } else if (currentEvent === 'done') {
                     setIsSynthesizing(false);
-                    if (onSynthesisComplete) onSynthesisComplete(currentQuery, fullReport);
+                    if (onSynthesisComplete) {
+                       const nextMessages = [...updatedMessages, { query: currentQuery, report: fullReport }];
+                       const titleQuery = nextMessages[0]?.query || currentQuery;
+                       const result = onSynthesisComplete(currentChatId, titleQuery, nextMessages);
+                       if (result instanceof Promise) {
+                          result.then((newId) => {
+                             if (newId) setCurrentChatId(newId);
+                          });
+                       }
+                    }
                  } else if (currentEvent === 'error') {
                     setError(data.message);
                     setIsSynthesizing(false);
@@ -255,8 +310,20 @@ export function ResearchInterface({ sessionId, historyItem, onSynthesisComplete 
     }
   };
 
+  const scrollToTop = () => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = 0;
+    }
+  };
+
+  const scrollToBottom = () => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  };
+
   return (
-    <div className="flex flex-col h-full relative bg-slate-50 dark:bg-[#050505] transition-colors duration-300">
+    <div className="flex flex-col h-full relative bg-transparent transition-colors duration-300">
       {/* Main Content Area */}
       <div 
         ref={scrollRef}
@@ -265,7 +332,7 @@ export function ResearchInterface({ sessionId, historyItem, onSynthesisComplete 
         <div className="max-w-3xl mx-auto space-y-12 pb-32">
           
           {/* Empty State */}
-          {!isSynthesizing && !finalReport && !error && greeting && !activeQuery && (
+          {!isSynthesizing && !finalReport && !error && greeting && !activeQuery && messages.length === 0 && (
              <motion.div 
                initial={{ opacity: 0, y: 20 }}
                animate={{ opacity: 1, y: 0 }}
@@ -277,6 +344,52 @@ export function ResearchInterface({ sessionId, historyItem, onSynthesisComplete 
                </h1>
              </motion.div>
           )}
+
+          {/* Render Historical Messages */}
+          {messages.map((msg, idx) => (
+            <div key={idx} className="space-y-8">
+              <motion.div 
+                 initial={{ opacity: 0, y: 10 }}
+                 animate={{ opacity: 1, y: 0 }}
+                 className="flex justify-end w-full"
+              >
+                <div className="flex flex-col items-start bg-indigo-50 dark:bg-[#1a1a1a] p-5 rounded-2xl rounded-tr-sm border border-indigo-100 dark:border-[#333] max-w-[85%] md:max-w-[75%] shadow-sm">
+                   <h2 className="text-lg font-medium text-slate-800 dark:text-zinc-100 whitespace-pre-wrap">{msg.query}</h2>
+                </div>
+              </motion.div>
+              
+              <motion.div 
+                 initial={{ opacity: 0, y: 10 }}
+                 animate={{ opacity: 1, y: 0 }}
+                 className="relative flex flex-col items-start w-full"
+              >
+                <div className="bg-white dark:bg-[#0a0a0a] p-8 md:p-10 rounded-2xl md:rounded-3xl border border-slate-200 dark:border-[#222] shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-none w-[90%] md:w-[85%] self-start">
+                  <div className="prose prose-slate dark:prose-invert prose-emerald max-w-none">
+                     <ReactMarkdown
+                       components={{
+                         h1: ({node, ...props}) => <h1 className="text-[32px] md:text-[42px] font-serif font-light leading-tight text-slate-900 dark:text-white mb-4 bg-gradient-to-r from-indigo-50 to-transparent dark:from-[#111] p-4 rounded-xl border border-indigo-100 dark:border-[#333]" {...props} />,
+                         h2: ({node, ...props}) => <h2 className="text-2xl font-serif font-light mt-8 mb-4 text-slate-800 dark:text-zinc-200 border-b border-slate-200 dark:border-[#222] pb-4" {...props} />,
+                         h3: ({node, ...props}) => <h3 className="font-sans font-medium text-lg mt-6 mb-3 text-slate-700 dark:text-zinc-300 inline-block bg-slate-100 dark:bg-[#111] px-3 py-1 rounded-md text-sm" {...props} />,
+                         p: ({node, ...props}) => <p className="leading-relaxed text-slate-700 dark:text-zinc-300 mb-4" {...props} />,
+                         ul: ({node, ...props}) => <ul className="list-disc list-outside pl-5 space-y-2 mb-4 text-slate-600 dark:text-zinc-400 ml-4 font-sans text-sm" {...props} />,
+                         li: ({node, ...props}) => <li className="pl-1" {...props} />,
+                         strong: ({node, ...props}) => <strong className="font-semibold text-slate-900 dark:text-zinc-100" {...props} />,
+                         blockquote: ({node, ...props}) => {
+                           const text = String(props.children);
+                           if (text.includes("Trust Score")) {
+                              return <blockquote className="my-8 text-center border border-indigo-200 dark:border-[#333] p-6 rounded-xl bg-white dark:bg-[#111] shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-none" {...props} />
+                           }
+                           return <blockquote className="border-l-2 border-indigo-500 dark:border-indigo-900 bg-indigo-50/50 dark:bg-[#0a0a0a] pl-6 py-3 pr-4 italic text-lg text-slate-600 dark:text-zinc-300 font-serif leading-relaxed my-6 rounded-r-lg" {...props} />
+                         }
+                       }}
+                     >
+                       {msg.report}
+                     </ReactMarkdown>
+                  </div>
+                </div>
+              </motion.div>
+            </div>
+          ))}
 
           {/* Active Query Display */}
           {(activeQuery) && (
@@ -313,8 +426,12 @@ export function ResearchInterface({ sessionId, historyItem, onSynthesisComplete 
           )}
 
           {/* Workflow Visualization */}
-          {activeAgents.length > 0 && !finalReport && (
-            <AgentWorkflow agents={activeAgents} />
+          {isSynthesizing && !finalReport && (
+            <AgentWorkflow 
+              agents={activeAgents} 
+              selectedAgents={selectedAgents} 
+              activeQuery={activeQuery} 
+            />
           )}
 
           {/* Final Output */}
@@ -366,19 +483,98 @@ export function ResearchInterface({ sessionId, historyItem, onSynthesisComplete 
             </motion.div>
           )}
 
-          {error && (
-            <div className="p-4 bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 text-red-600 dark:text-red-400 rounded-lg">
-              <span className="font-semibold">System Error:</span> {error}
-            </div>
-          )}
+          <AnimatePresence>
+            {error && (
+              <motion.div 
+                initial={{ opacity: 0, y: -20, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                transition={{ duration: 0.3 }}
+                className="fixed top-8 left-1/2 -translate-x-1/2 z-50 p-4 bg-slate-900/90 dark:bg-[#111]/90 backdrop-blur-md border border-red-500/50 shadow-[0_0_20px_rgba(239,68,68,0.3)] text-red-100 rounded-xl max-w-lg w-[90%] flex items-start gap-3"
+              >
+                <div className="flex-1">
+                  <span className="font-semibold text-red-400 block mb-1">System Notice</span> 
+                  <span className="text-sm leading-relaxed">{error}</span>
+                </div>
+                <button 
+                  onClick={() => setError('')}
+                  className="text-red-400 hover:text-red-300 p-1"
+                >
+                  ×
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
         </div>
       </div>
+
+      {/* Scroll Controls */}
+      {(messages.length > 0 || finalReport) && (
+          <div className="absolute bottom-[200px] right-4 md:right-12 flex flex-col gap-3 z-30 opacity-70 hover:opacity-100 transition-opacity">
+            <button
+              onClick={scrollToTop}
+              type="button"
+              className="p-2.5 bg-white dark:bg-[#111] text-slate-600 dark:text-zinc-400 rounded-full border border-slate-200 dark:border-[#333] shadow-md hover:bg-slate-50 dark:hover:bg-[#222] transition-colors"
+              title="Scroll to Top"
+            >
+              <ArrowUp className="w-5 h-5" />
+            </button>
+            <button
+              onClick={scrollToBottom}
+              type="button"
+              className="p-2.5 bg-white dark:bg-[#111] text-slate-600 dark:text-zinc-400 rounded-full border border-slate-200 dark:border-[#333] shadow-md hover:bg-slate-50 dark:hover:bg-[#222] transition-colors"
+              title="Scroll to Bottom"
+            >
+              <ArrowDown className="w-5 h-5" />
+            </button>
+          </div>
+      )}
 
       {/* Input Area - Floating Bar */}
       <div className="absolute bottom-8 left-1/2 -translate-x-1/2 w-[90%] max-w-3xl z-10 transition-all">
         <form onSubmit={handleSubmit} className="bg-slate-100 dark:bg-[#1A1A1A] border border-slate-200 dark:border-[#333] rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.08)] dark:shadow-2xl flex flex-col p-1.5 pl-3 transition-colors duration-300">
           
+          {/* Agent Selection Toggles */}
+          <div className="flex flex-wrap justify-center gap-4 py-2 border-b border-slate-200 dark:border-[#333]">
+            <label className={`flex items-center gap-2 text-sm cursor-pointer transition-colors ${selectedAgents.includes('web') ? 'text-blue-600 dark:text-blue-400' : 'text-slate-600 dark:text-zinc-400 font-medium'}`}>
+              <input 
+                type="checkbox" 
+                checked={selectedAgents.includes('web')} 
+                onChange={(e) => {
+                  if (e.target.checked) setSelectedAgents(prev => [...prev, 'web']);
+                  else setSelectedAgents(prev => prev.filter(a => a !== 'web'));
+                }}
+                className="appearance-none w-4 h-4 border-[1.5px] border-slate-300 dark:border-zinc-600 rounded-full checked:bg-blue-500 checked:border-transparent relative after:content-[''] after:absolute after:inset-0 after:m-auto after:w-1.5 after:h-1.5 after:bg-white after:rounded-full after:scale-0 checked:after:scale-100 transition-all cursor-pointer"
+              />
+              Web Search Agent
+            </label>
+            <label className={`flex items-center gap-2 text-sm cursor-pointer transition-colors ${selectedAgents.includes('code') ? 'text-purple-600 dark:text-purple-400' : 'text-slate-600 dark:text-zinc-400 font-medium'}`}>
+              <input 
+                type="checkbox" 
+                checked={selectedAgents.includes('code')} 
+                onChange={(e) => {
+                  if (e.target.checked) setSelectedAgents(prev => [...prev, 'code']);
+                  else setSelectedAgents(prev => prev.filter(a => a !== 'code'));
+                }}
+                className="appearance-none w-4 h-4 border-[1.5px] border-slate-300 dark:border-zinc-600 rounded-full checked:bg-purple-500 checked:border-transparent relative after:content-[''] after:absolute after:inset-0 after:m-auto after:w-1.5 after:h-1.5 after:bg-white after:rounded-full after:scale-0 checked:after:scale-100 transition-all cursor-pointer"
+              />
+              Data Analyst Agent
+            </label>
+            <label className={`flex items-center gap-2 text-sm cursor-pointer transition-colors ${selectedAgents.includes('critic') ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-600 dark:text-zinc-400 font-medium'}`}>
+              <input 
+                type="checkbox" 
+                checked={selectedAgents.includes('critic')} 
+                onChange={(e) => {
+                  if (e.target.checked) setSelectedAgents(prev => [...prev, 'critic']);
+                  else setSelectedAgents(prev => prev.filter(a => a !== 'critic'));
+                }}
+                className="appearance-none w-4 h-4 border-[1.5px] border-slate-300 dark:border-zinc-600 rounded-full checked:bg-emerald-500 checked:border-transparent relative after:content-[''] after:absolute after:inset-0 after:m-auto after:w-1.5 after:h-1.5 after:bg-white after:rounded-full after:scale-0 checked:after:scale-100 transition-all cursor-pointer"
+              />
+              Critic Agent
+            </label>
+          </div>
+
           {image && (
             <div className="flex items-center gap-2 mb-2 ml-2 mt-2">
               <div className="relative group/img">

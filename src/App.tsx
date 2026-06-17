@@ -5,6 +5,7 @@ import { Brain, Sun, Moon, Search, BrainCircuit, LineChart } from 'lucide-react'
 import { LoginScreen } from './components/LoginScreen';
 import { AppLogo } from './components/AppLogo';
 import { saveChatHistory } from './firebase';
+import { ParticleBackground } from './components/ParticleBackground';
 
 // Generate a random stable session ID
 const generateSessionId = () => Math.random().toString(36).substring(2, 9);
@@ -62,11 +63,13 @@ export default function App() {
     setTheme(prev => prev === 'dark' ? 'light' : 'dark');
   };
 
-  const notifySynthesisComplete = useCallback(async (query: string, report: string) => {
+  const notifySynthesisComplete = useCallback(async (chatId: string | null, query: string, messages: {query: string, report: string}[]) => {
     if (userId) {
-      await saveChatHistory(userId, query, report, Date.now());
+      const newChatId = await saveChatHistory(userId, chatId, query, messages, Date.now());
       setHistoryTrigger(prev => prev + 1);
+      return newChatId;
     }
+    return null;
   }, [userId]);
 
   if (!isLoggedIn) {
@@ -92,8 +95,9 @@ export default function App() {
       </header>
 
       {/* Main Layout */}
-      <main className="flex-1 flex overflow-hidden">
-        <div className="hidden md:flex">
+      <main className="flex-1 flex overflow-hidden relative">
+        <ParticleBackground />
+        <div className="hidden md:flex relative z-10">
           <Sidebar 
             sessionId={sessionId} 
             userId={userId}
@@ -104,7 +108,7 @@ export default function App() {
             userPhoto={userPhoto}
           />
         </div>
-        <section className="flex-1 flex flex-col min-w-0 bg-slate-50 dark:bg-[#050505] relative transition-colors duration-300">
+        <section className="flex-1 flex flex-col min-w-0 bg-transparent relative z-10 transition-colors duration-300">
           <ResearchInterface 
             sessionId={sessionId} 
             historyItem={activeHistoryItem} 
