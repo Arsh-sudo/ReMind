@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Search, X } from 'lucide-react';
 
 interface HistoryItem {
@@ -41,7 +42,7 @@ export function SearchChatModal({ onClose, history, onSelectChat }: SearchChatMo
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [onClose]);
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-start justify-center pt-[10vh] bg-black/60 backdrop-blur-sm" id="search-modal-overlay" onClick={(e) => {
       if ((e.target as HTMLElement).id === 'search-modal-overlay') onClose();
     }}>
@@ -98,6 +99,7 @@ export function SearchChatModal({ onClose, history, onSelectChat }: SearchChatMo
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

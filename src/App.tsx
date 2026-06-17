@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { ResearchInterface } from './components/ResearchInterface';
-import { Brain, Sun, Moon, Search, BrainCircuit, LineChart } from 'lucide-react';
+import { Brain, Sun, Moon, Search, BrainCircuit, LineChart, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { LoginScreen } from './components/LoginScreen';
 import { AppLogo } from './components/AppLogo';
 import { saveChatHistory } from './firebase';
@@ -20,6 +20,13 @@ export default function App() {
   });
 
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
+  const [isSidebarOpen, setIsSidebarOpen] = useState(() => {
+    return localStorage.getItem('rm_sidebar_open') !== 'false';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('rm_sidebar_open', isSidebarOpen ? 'true' : 'false');
+  }, [isSidebarOpen]);
 
   useEffect(() => {
     if (theme === 'dark') {
@@ -63,6 +70,45 @@ export default function App() {
     setTheme(prev => prev === 'dark' ? 'light' : 'dark');
   };
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ignore if typing inside input/textarea elements
+      if (document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA') {
+        return;
+      }
+
+      // Start New Chat (Alt + N)
+      if (e.altKey && e.key.toLowerCase() === 'n') {
+        const enabled = localStorage.getItem('rm_sc_new_chat') !== 'false';
+        if (enabled) {
+          e.preventDefault();
+          setActiveHistoryItem(null);
+        }
+      }
+
+      // Toggle Theme (Alt + T)
+      if (e.altKey && e.key.toLowerCase() === 't') {
+        const enabled = localStorage.getItem('rm_sc_toggle_theme') !== 'false';
+        if (enabled) {
+          e.preventDefault();
+          toggleTheme();
+        }
+      }
+
+      // Toggle Sidebar (Alt + M)
+      if (e.altKey && e.key.toLowerCase() === 'm') {
+        const enabled = localStorage.getItem('rm_sc_toggle_sidebar') !== 'false';
+        if (enabled) {
+          e.preventDefault();
+          setIsSidebarOpen(prev => !prev);
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   const notifySynthesisComplete = useCallback(async (chatId: string | null, query: string, messages: {query: string, report: string}[]) => {
     if (userId) {
       const newChatId = await saveChatHistory(userId, chatId, query, messages, Date.now());
@@ -81,6 +127,13 @@ export default function App() {
       {/* Header */}
       <header className="h-16 border-b border-slate-200 dark:border-[#222] px-4 md:px-8 flex items-center justify-between bg-white dark:bg-[#080808] shrink-0 transition-colors duration-300">
         <div className="flex items-center gap-3 group">
+          <button
+            onClick={() => setIsSidebarOpen(prev => !prev)}
+            className="p-2 -ml-2 rounded-lg hover:bg-slate-100 dark:hover:bg-[#1A1A1A] text-slate-600 dark:text-zinc-400 hidden md:block transition-colors"
+            title={isSidebarOpen ? "Minimize sidebar" : "Expand sidebar"}
+          >
+            {isSidebarOpen ? <PanelLeftClose size={18} /> : <PanelLeftOpen size={18} />}
+          </button>
           <AppLogo className="w-8 h-8 shadow-sm group-hover:scale-105 transition-transform" />
           <h1 className="text-xl font-bold tracking-widest uppercase hidden sm:block text-slate-900 dark:text-white">REMIND</h1>
         </div>
@@ -97,7 +150,7 @@ export default function App() {
       {/* Main Layout */}
       <main className="flex-1 flex overflow-hidden relative">
         <ParticleBackground />
-        <div className="hidden md:flex relative z-10">
+        <div className={`hidden md:flex relative z-10 transition-all duration-300 ease-in-out ${isSidebarOpen ? "w-72" : "w-0 opacity-0 overflow-hidden"}`}>
           <Sidebar 
             sessionId={sessionId} 
             userId={userId}

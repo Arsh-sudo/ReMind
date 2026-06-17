@@ -1,7 +1,8 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { Plus, Search, Image as ImageIcon, LayoutGrid, PlusSquare, History, Settings, Activity, User, ShieldCheck, Database, LogOut, ChevronRight, UserCircle, MessageSquare, HelpCircle } from 'lucide-react';
+import { Plus, Search, Image as ImageIcon, LayoutGrid, PlusSquare, History, Settings, Activity, User, ShieldCheck, Database, LogOut, ChevronRight, UserCircle, MessageSquare, HelpCircle, Keyboard, FileText } from 'lucide-react';
 import { FeedbackModal } from './FeedbackModal';
 import { SearchChatModal } from './SearchChatModal';
+import { ShortcutsModal } from './ShortcutsModal';
 import { loadChatHistory } from '../firebase';
 
 interface SidebarProps {
@@ -25,6 +26,7 @@ export function Sidebar({ sessionId, userId, onHistoryClick, onNewChat, refreshT
   const [showSettings, setShowSettings] = useState(false);
   const [showFeedback, setShowFeedback] = useState(false);
   const [showSearchChat, setShowSearchChat] = useState(false);
+  const [showShortcuts, setShowShortcuts] = useState(false);
   const settingsRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -45,6 +47,24 @@ export function Sidebar({ sessionId, userId, onHistoryClick, onNewChat, refreshT
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ignore if typing inside input/textarea elements
+      if (document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA') {
+        return;
+      }
+      if (e.altKey && e.key.toLowerCase() === 's') {
+        const enabled = localStorage.getItem('rm_sc_search_chats') !== 'false';
+        if (enabled) {
+          e.preventDefault();
+          setShowSearchChat(true);
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
   return (
@@ -122,6 +142,26 @@ export function Sidebar({ sessionId, userId, onHistoryClick, onNewChat, refreshT
              >
                <MessageSquare size={16} /> Send feedback
              </button>
+             
+             <button 
+               onClick={() => {
+                 setShowSettings(false);
+                 setShowShortcuts(true);
+               }}
+               className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-slate-100 dark:hover:bg-[#2A2A2A] text-slate-700 dark:text-zinc-200 text-sm transition-colors text-left"
+             >
+               <Keyboard size={16} /> Keyboard shortcuts
+             </button>
+
+             <a 
+               href="/terms.html" 
+               target="_blank" 
+               rel="noopener noreferrer"
+               className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-slate-100 dark:hover:bg-[#2A2A2A] text-slate-700 dark:text-zinc-200 text-sm transition-colors text-left"
+             >
+               <FileText size={16} /> Terms of Service
+             </a>
+
              <div className="h-px bg-slate-200 dark:bg-[#333] my-2"></div>
              <button 
                 onClick={() => {
@@ -140,6 +180,9 @@ export function Sidebar({ sessionId, userId, onHistoryClick, onNewChat, refreshT
       </div>
       {showFeedback && (
         <FeedbackModal onClose={() => setShowFeedback(false)} />
+      )}
+      {showShortcuts && (
+        <ShortcutsModal onClose={() => setShowShortcuts(false)} />
       )}
       {showSearchChat && (
         <SearchChatModal 

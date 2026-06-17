@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { X, UploadCloud, Loader2 } from 'lucide-react';
 
 interface FeedbackModalProps {
@@ -77,7 +78,7 @@ export function FeedbackModal({ onClose }: FeedbackModalProps) {
     }
   };
 
-  return (
+  return createPortal(
     <div id="feedback-modal-overlay" className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
       <div className="bg-[#202124] text-white w-full max-w-md rounded-lg shadow-2xl overflow-hidden flex flex-col font-sans">
         
@@ -183,6 +184,7 @@ export function FeedbackModal({ onClose }: FeedbackModalProps) {
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
