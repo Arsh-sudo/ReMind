@@ -212,18 +212,20 @@ function CriticAgentFigure({ size = "medium" }: { size?: "medium" | "large" }) {
       />
 
       {/* Golden ratio coordinate ticks */}
-      <motion.circle
-        r="44"
-        cx="50%"
-        cy="50%"
-        fill="none"
-        stroke="#10b981"
-        strokeWidth="1"
-        strokeDasharray="4 6"
-        className="absolute inset-2"
-        animate={{ rotate: -360 }}
-        transition={{ repeat: Infinity, duration: 18, ease: "linear" }}
-      />
+      <svg className="absolute inset-0 w-full h-full">
+        <motion.circle
+          r="44"
+          cx="50%"
+          cy="50%"
+          fill="none"
+          stroke="#10b981"
+          strokeWidth="1"
+          strokeDasharray="4 6"
+          animate={{ rotate: -360 }}
+          style={{ originX: "50%", originY: "50%" }}
+          transition={{ repeat: Infinity, duration: 18, ease: "linear" }}
+        />
+      </svg>
 
       {/* Pulsing protective bubble */}
       <motion.div

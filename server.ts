@@ -31,7 +31,7 @@ async function startServer() {
       }
 
       const ai = new GoogleGenAI({ apiKey, httpOptions: { headers: { 'User-Agent': 'aistudio-build' } }});
-      const model = "gemini-2.5-flash";
+      const model = "gemini-3.5-flash";
 
       // Session Memory Context
       const history = memoryStore[sessionId] || [];
@@ -52,22 +52,42 @@ async function startServer() {
       let webResultText = "Web Search Agent was not selected.";
       let codeResultText = "Data Analysis Agent was not selected.";
 
-      const withRetry = async <T>(fn: () => Promise<T>, retries = 3): Promise<T> => {
-        for (let i = 0; i < retries; i++) {
-          try {
-            return await fn();
-          } catch (err: any) {
-            if (i === retries - 1) throw err;
-            await new Promise(r => setTimeout(r, 1500 * (i + 1)));
+      const modelsToTry = ["gemini-3.5-flash", "gemini-2.5-flash", "gemini-1.5-flash", "gemini-2.5-pro", "gemini-1.5-pro"];
+
+      const withFallbackAndRetry = async <T>(fn: (currentModel: string) => Promise<T>, retriesPerModel = 2): Promise<T> => {
+        let lastError: any = null;
+        for (const currentModel of modelsToTry) {
+          for (let attempt = 0; attempt < retriesPerModel; attempt++) {
+            try {
+              return await fn(currentModel);
+            } catch (err: any) {
+              lastError = err;
+              const isTransient = err?.message && (
+                err.message.includes('429') || 
+                err.message.includes('RESOURCE_EXHAUSTED') || 
+                err.message.includes('503') || 
+                err.message.includes('UNAVAILABLE') ||
+                err.message.includes('limit')
+              );
+              if (isTransient) {
+                console.warn(`Model ${currentModel} (attempt ${attempt + 1}) failed transiently. Error:`, err.message || err);
+                if (attempt < retriesPerModel - 1) {
+                  await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
+                }
+              } else {
+                console.warn(`Model ${currentModel} failed with non-transient error:`, err.message || err);
+                break;
+              }
+            }
           }
         }
-        throw new Error("Unreachable");
+        throw lastError || new Error("All fallback models failed");
       };
 
       if (selectedAgents.includes('web')) {
          sendEvent('status', { agent: 'web', message: 'Executing live Google Search to gather latest academic and news sources...' });
-         const webSearchPromise = withRetry(() => ai.models.generateContent({
-           model,
+         const webSearchPromise = withFallbackAndRetry((currentModel) => ai.models.generateContent({
+           model: currentModel,
            contents: image ? [
               `Research the following topic thoroughly. Gather recent facts, statistics, and claims. Topic: ${query}. ${historyContext}`,
               { inlineData: { data: image.data, mimeType: image.mimeType } }
@@ -84,8 +104,8 @@ async function startServer() {
 
       if (selectedAgents.includes('code')) {
          sendEvent('status', { agent: 'code', message: 'Provisioning sandboxed environment to compute data analysis...' });
-         const codeExecPromise = withRetry(() => ai.models.generateContent({
-           model,
+         const codeExecPromise = withFallbackAndRetry((currentModel) => ai.models.generateContent({
+           model: currentModel,
            contents: `Act as a Data Analysis Agent. Generate a highly analytical summary providing mathematical, statistical, or structured insights about this topic: ${query}. (Simulate Kaggle/Python output)`,
            config: {
              systemInstruction: "You are the Code Executor Agent in a research pipeline. Provide data insights."
@@ -137,8 +157,8 @@ async function startServer() {
         - Include an Executive Summary, your findings, and a final Trust Score representing your confidence in your own knowledge of the topic.
         `;
 
-        finalStream = await withRetry(() => ai.models.generateContentStream({
-          model,
+        finalStream = await withFallbackAndRetry((currentModel) => ai.models.generateContentStream({
+          model: currentModel,
           contents: criticPrompt,
           config: { systemInstruction: "You are the Critic Agent. Output clean markdown." }
         }));
@@ -165,8 +185,8 @@ async function startServer() {
         - Start directly with the markdown content.
         `;
 
-        finalStream = await withRetry(() => ai.models.generateContentStream({
-          model,
+        finalStream = await withFallbackAndRetry((currentModel) => ai.models.generateContentStream({
+          model: currentModel,
           contents: compilePrompt,
           config: { systemInstruction: "You are a professional report compiler. Output clean markdown." }
         }));
