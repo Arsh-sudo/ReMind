@@ -14,6 +14,10 @@ const firebaseConfig = {
   measurementId: (import.meta as any).env.VITE_FIREBASE_MEASUREMENT_ID || appletConfig.measurementId
 };
 
+if (!firebaseConfig.apiKey && (import.meta as any).env.MODE !== 'development') {
+  console.warn('Firebase API Key is missing. Ensure VITE_FIREBASE_API_KEY is set in your environment.');
+}
+
 const app = initializeApp(firebaseConfig);
 // @ts-ignore - The property firestoreDatabaseId is added by AI Studio setup
 export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId); 
