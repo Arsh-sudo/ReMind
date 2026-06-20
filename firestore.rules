@@ -18,20 +18,15 @@ service cloud.firestore {
     }
     
     function isValidId(id) {
-      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+      return id is string && id.size() <= 128;
     }
     
     function isValidChatRecord(data) {
       return data.keys().hasAll(['query', 'messages', 'timestamp'])
+        && data.keys().size() == 3
         && data.query is string
         && data.messages is list
-        && data.timestamp is number;
-    }
-    
-    function isValidChatUpdate(data) {
-      return data.keys().hasAll(['messages', 'timestamp'])
-        && data.messages is list
-        && data.timestamp is number;
+        && (data.timestamp is int || data.timestamp is float);
     }
     
     match /users/{userId}/chats/{chatId} {
@@ -42,7 +37,9 @@ service cloud.firestore {
         && isValidChatRecord(incoming());
       allow update: if isSignedIn()
          && request.auth.uid == userId
-         && isValidChatUpdate(incoming());
+         && isValidId(chatId)
+         && isValidChatRecord(incoming())
+         && incoming().query == resource.data.query;
     }
   }
 }

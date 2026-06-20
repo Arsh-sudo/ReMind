@@ -1,280 +1,95 @@
-# 🧠 ReMind
+# ReMind: Multi-Agent Research Intelligence System
 
-<div align="center">
-  <p><strong>AI Companion for Dementia Care | Powered by Large Language Models</strong></p>
-  <p>Elevating emotional well-being and independence for people with dementia and their caregivers</p>
-  <br>
-  <img src="https://img.shields.io/badge/GitHub-Repository-181717?style=for-the-badge&logo=github" alt="GitHub Repository">
-  <img src="https://img.shields.io/badge/Python-3.8+-blue.svg?style=for-the-badge&logo=python&logoColor=yellow" alt="Python Version">
-  <img src="https://img.shields.io/badge/OpenAI-GPT-4-412941.svg?style=for-the-badge&logo=openai&logoColor=white" alt="GPT-4 Powered">
-  <img src="https://img.shields.io/badge/License-MIT-green.svg?style=for-the-badge" alt="License">
-  <br><br>
-</div>
+ReMind is a futuristic, highly architectural research platform that leverages a multi-agent system powered by Google's Gemini API. It delegates complex research tasks to specialized agents (Orchestrator, Web Search, Code Executor, and Critic) to produce comprehensive, verified, and structured reports complete with a research Trust Score.
 
----
+![ReMind Dashboard Preview](public/preview-hero.png) *(Note: Add your actual preview image to this path)*
 
-## 🌟 Overview
+## 🚀 Key Features
 
-**ReMind** represents a groundbreaking advancement in AI-assisted dementia care. Built on cutting-edge Large Language Model (LLM) technology, our prototype delivers adaptive conversational support that improves the emotional well-being, independence, and quality of life for people with dementia and their caregivers.
+- **Multi-Agent Orchestration**: A core system that coordinates between different AI agents to perform deep research.
+- **Live Web Research**: Specialized agents perform real-time searches to gather the latest information and statistics.
+- **Data Analysis Agent**: A sandboxed code execution environment that computes mathematical and statistical insights.
+- **Critic & Fact-Checker**: An independent agent that reviews findings for hallucinations and provides a final Trust Score.
+- **Futuristic UI/UX**: Built with a "Cosmic Slate" aesthetic, featuring fluid motion animations, particle backgrounds, and geometric status grids.
+- **Durable Persistence**: Full integration with Firebase for secure user authentication and synchronized chat/history storage.
+- **Export Suite**: Generate professional reports and export them as PDF, PPTX (PowerPoint), or high-resolution images.
 
-> *"Large Language Models such as ChatGPT by OpenAI have made it plausible to tackle problems surrounding dementia patients and their caregivers."*
+## 🛠️ Technical Stack
 
-### 🎯 Mission
+- **Frontend**: 
+  - [React 19](https://react.dev/) & [Vite](https://vitejs.dev/)
+  - [Tailwind CSS 4](https://tailwindcss.com/) for precision styling
+  - [Motion/React](https://www.framer.com/motion/) for architectural animations
+  - [Lucide React](https://lucide.dev/) for iconography
+- **Backend**: 
+  - [Express](https://expressjs.com/) (Node.js)
+  - [tsx](https://github.com/privatenumber/tsx) for seamless TypeScript execution
+  - [Google Gemini API](https://ai.google.dev/) (@google/genai SDK)
+- **Database & Auth**:
+  - [Firebase Firestore](https://firebase.google.com/docs/firestore)
+  - [Firebase Authentication](https://firebase.google.com/docs/auth)
+- **Reporting Utilities**:
+  - [jsPDF](https://github.com/parallax/jsPDF) (PDF Export)
+  - [PptxGenJS](https://gitbrent.github.io/PptxGenJS/) (PowerPoint Export)
+  - [html-to-image](https://github.com/tsayen/html-to-image) & [html2canvas](https://html2canvas.hertzen.com/)
 
-ReMind is geared to improve emotional well-being and independence by:
-
-| # | Capability | Description |
-|---|------------|-------------|
-| 🗣️ | **Adaptive Conversations** | Initiates engaging conversations that create a positive emotional atmosphere |
-| 📝 | **Memory Assistance** | Helps remember crucial information like names of loved ones, important dates, and personal history |
-| 📊 | **Caregiver Feedback** | Provides actionable insights to caregivers about their interactions with the patient |
-| 💭 | **Emotion Intelligence** | Real-time emotional state awareness for both patient and caregiver |
-
----
-
-## ✨ Key Features
-
-### 🎭 Emotional Intelligence Engine
-
-ReMind extracts and analyzes emotions expressed in conversations using two core psychological dimensions:
-┌─────────────────────────────────────────────────────┐
-│ EMOTIONAL ANALYSIS MATRIX │
-├─────────────────────────────────────────────────────┤
-│ - Arousal: Energy level of the emotion │
-│ - Valence: Positive/negative quality of emotion │
-└─────────────────────────────────────────────────────┘
-
-text
-
-The AI companion is aware of the **current emotional state** of both the patient and caregiver, enabling differential responses and adaptive behavior.
-
-### 📚 Personal History Management
-
-- **Subjective History Database**: GPT-4 analyzes and maintains the patient's personal history
-- **Patient-Only Access**: History database is accessible exclusively to the patient for privacy
-- **End-to-End Integration**: Seamless personal history management throughout conversations
-
-### 🎤 Multi-Modal Input Support
-
-- **Direct Speech Input**: Natural voice interaction for enhanced accessibility
-- **Real-Time Processing**: Instant conversation analysis and response generation
-- **Contextual Awareness**: Maintains conversation context across multiple interactions
-
----
-
-## 🏗️ Architecture
-┌────────────────────────────────────────────────────────────────┐
-│ ReMind Architecture │
-├────────────────────────────────────────────────────────────────┤
-│ │
-│ ┌──────────┐ ┌──────────┐ ┌────────────────────────┐ │
-│ │ Speech │ → │ OpenAI │ → │ Emotion Analysis │ │
-│ │ Input │ │ GPT-4 │ │ (Arousal + Valence) │ │
-│ └──────────┘ └──────────┘ └────────────────────────┘ │
-│ │ │
-│ ▼ │
-│ ┌────────────────────────────────────────────────────────┐ │
-│ │ Personal History Database │ │
-│ │ (Patient-exclusive access, GPT-4 maintained) │ │
-│ └────────────────────────────────────────────────────────┘ │
-│ │ │
-│ ▼ │
-│ ┌──────────┐ ┌──────────┐ ┌────────────────────────┐ │
-│ │ Adaptive │ ← │ Emotional │ ← │ Conversation │ │
-│ │ Response │ │ State │ │ Analysis │ │
-│ └──────────┘ └──────────┘ └────────────────────────┘ │
-│ ▲ │
-│ │ │
-│ ┌──────────────┐ │
-│ │ Caregiver │ │
-│ │ Feedback │ │
-│ └──────────────┘ │
-│ │
-└────────────────────────────────────────────────────────────────┘
-
-text
-
----
-
-## 🚀 Technology Stack
-
-| Component | Technology |
-|-----------|------------|
-| **Core AI** | OpenAI GPT-4 |
-| **Language Model** | ChatGPT (OpenAI) |
-| **Implementation** | Python |
-| **Emotion Analysis** | Arousal & Valence Framework |
-| **Database** | Personal History Database (Patient-secure) |
-| **Input** | Direct Speech Processing |
-
----
-
-## 📦 Installation
+## 🏁 Getting Started
 
 ### Prerequisites
 
-- Python 3.8 or higher
-- OpenAI API key with GPT-4 access
-- npm (for dependencies)
+- Node.js 18+ installed
+- A Google Gemini API Key
+- A Firebase Project (Firestore and Auth enabled)
 
-### Quick Start
+### Environment Setup
+
+1. Clone the repository and navigate to the project root.
+2. Create a `.env` file based on `.env.example`:
+   ```bash
+   cp .env.example .env
+   ```
+3. Fill in your credentials:
+   ```env
+   GEMINI_API_KEY=your_gemini_api_key
+   # Firebase Config (get from Firebase Console)
+   VITE_FIREBASE_API_KEY=...
+   VITE_FIREBASE_AUTH_DOMAIN=...
+   VITE_FIREBASE_PROJECT_ID=...
+   VITE_FIREBASE_STORAGE_BUCKET=...
+   VITE_FIREBASE_MESSAGING_SENDER_ID=...
+   VITE_FIREBASE_APP_ID=...
+   ```
+
+### Installation
 
 ```bash
-# 1. Clone the repository
-git clone https://github.com/Arsh-sudo/ReMind.git
-cd ReMind
-
-# 2. Install dependencies
+# Install dependencies
 npm install
+```
 
-# 3. Configure OpenAI API key
-export OPENAI_API_KEY="your-api-key_here"
+### Running the App
 
-# 4. Start the development server
+```bash
+# Start the development server (Frontend + Backend proxy)
 npm run dev
 ```
 
----
+The application will be available at `http://localhost:3000`.
 
-## 🎮 Usage
+## 🏗️ Architecture
 
-### Starting a Conversation
+- **`server.ts`**: The central brain. It handles the API orchestration, Gemini fallbacks, and streams events to the frontend.
+- **`/src/components/`**: 
+  - `AgentWorkflow.tsx`: Manages the visual state and progression of the research agents.
+  - `ResearchInterface.tsx`: The primary interaction zone for researchers.
+  - `ParticleBackground.tsx`: Provides the immersive geometric atmospheric effect.
+- **`/src/firebase.ts`**: Configuration and abstractions for data synchronization.
+- **`firestore.rules`**: Security directives ensuring users can only access their own research data.
 
-```python
-from remind import ReMindAI
+## 📜 License
 
-# Initialize ReMind AI companion
-remind = ReMindAI(
-    api_key="your-openai-key",
-    model="gpt-4"
-)
-
-# Start adaptive conversation with patient
-response = remind.converse(
-    user_input="Hello, who is my daughter?",
-    user_type="patient"
-)
-
-print(response)
-```
-
-### Emotion Analysis
-
-```python
-# Analyze emotion in conversation
-emotion_data = remind.analyze_emotion(
-    sentence="I feel happy today seeing my family"
-)
-
-print(f"Arousal: {emotion_data.arousal}")  # Energy level
-print(f"Valence: {emotion_data.valence}")   # Positive/negative quality
-```
-
-### Caregiver Feedback
-
-```python
-# Get feedback for caregiver
-feedback = remind.get_caregiver_feedback(
-    conversation_history=conversation,
-    patient_emotional_state=emotion_data
-)
-
-print(feedback.insights)
-```
+Distributed under the MIT License. See `LICENSE` for more information.
 
 ---
 
-## 📊 Demo & Prototype
-
-A **working prototype in Python using OpenAI** is available for testing. The prototype demonstrates:
-
-- ✅ End-to-end working conversation flow
-- ✅ Direct speech input processing
-- ✅ Personal history management
-- ✅ Real-time emotion evaluation
-- ✅ Adaptive response generation
-- ✅ Caregiver feedback system
-
----
-
-## 🔒 Privacy & Security
-
-ReMind prioritizes patient privacy with:
-
-- **Exclusive Patient Access**: History database accessible only to the patient
-- **Local Data Handling**: Personal information stored securely
-- **Encrypted Communication**: All conversations encrypted end-to-end
-- **No External Sharing**: Patient data never shared with third parties
-
----
-
-## 🤝 Contributing
-
-We welcome contributions to make ReMind even better!
-
-1. **Fork the repository**
-2. **Create a feature branch**: `git checkout -b feature/my-feature`
-3. **Make your changes** and commit: `git commit -am 'Add new feature'`
-4. **Push to branch**: `git push origin feature/my-feature`
-5. **Create a Pull Request**
-
-### Development Guidelines
-
-- Follow Python best practices
-- Maintain code documentation
-- Test all changes thoroughly
-- Ensure privacy features remain intact
-
----
-
-## 📄 License
-
-This project is licensed under the **MIT License**.
-
----
-
-## 🙏 Acknowledgments
-
-ReMind is built on the foundation of advances in Large Language Models:
-
-- **OpenAI** for GPT-4 and ChatGPT technology
-- **LLM Research Community** for advancing AI companion capabilities
-- **Dementia Care Research** for understanding patient needs
-
----
-
-## 📞 Contact
-
-- **GitHub**: [@Arsh-sudo](https://github.com/Arsh-sudo)
-- **Repository**: [github.com/Arsh-sudo/ReMind](https://github.com/Arsh-sudo/ReMind)
-- **Issues**: [GitHub Issues](https://github.com/Arsh-sudo/ReMind/issues)
-
----
-
-## 🌈 Impact
-
-> *"ReMind represents a significant step forward in AI-assisted dementia care, leveraging the power of Large Language Models to create meaningful, adaptive conversations that improve quality of life."* [1]
-
-### Expected Outcomes
-
-| Stakeholder | Benefit |
-|-------------|---------|
-| **Patients** | Enhanced emotional well-being, improved independence, better memory recall |
-| **Caregivers** | Actionable feedback, reduced stress, improved interaction quality |
-| **Healthcare** | Insightful reports, condition monitoring, cost-effective care support |
-
----
-
-<div align="center">
-
-**Built with ❤️ for better dementia care**
-
-Follow the project for updates and contribute to the future of AI-assisted care
-
-</div>
-
----
-
-<p align="center">
-  <a href="#top">↑ Back to Top</a>
-</p>
+*Crafted with precision as a Multi-Agent Research Intelligence System.*
