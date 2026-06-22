@@ -2,7 +2,6 @@
 
 ReMind is a futuristic, highly architectural research platform that leverages a multi-agent system powered by Google's Gemini API. It delegates complex research tasks to specialized agents (Orchestrator, Web Search, Code Executor, and Critic) to produce comprehensive, verified, and structured reports complete with a research Trust Score.
 
-![ReMind Dashboard Preview](public/preview-hero.png) *(Note: Add your actual preview image to this path)*
 
 ## 🚀 Key Features
 
